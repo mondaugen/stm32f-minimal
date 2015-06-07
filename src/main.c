@@ -23,26 +23,28 @@ int main (void)
     /* Enable UART5 clock */
     RCC->APB1ENR |= RCC_APB1ENR_UART5EN;
     /* Set to alternate function */
-    GPIOC->MODER |= (1 << (12*2)) + 1;
+    GPIOC->MODER &= ~(0x3 << (12*2));
+    GPIOC->MODER |= (1 << ((12*2)+1));
     GPIOC->AFR[1] &= ~(0xf << 16);
     GPIOC->AFR[1] |= (0x8 << 16);
     /* Set speed fast */
-    GPIOC->OSPEEDR |= (0x3 << (2*12));
+//    GPIOC->OSPEEDR |= (0x3 << (2*12));
     /* Set open drain */
-    GPIOC->OTYPER |= GPIO_OTYPER_ODR_12;
-    /* Set Baud Rate */
-    UART5->BRR = 0x187;
+//    GPIOC->OTYPER |= GPIO_OTYPER_ODR_12;
     /* Enable UART */
-//    UART5->CR1 |= USART_CR1_UE | USART_CR1_TE;
+    UART5->CR1 |= USART_CR1_UE;
+    UART5->CR1 &= ~USART_CR1_M;
+    /* Set Baud Rate */
+    UART5->BRR = 0x124f;//0x187;
+    UART5->CR1 |= USART_CR1_TE;
     while (1) {
         /* Wait for previous bytes to transmit */
-        while (!(UART5->SR & USART_SR_TC));
+        while (!(UART5->SR & USART_SR_TXE));
         /* Transmit something */
         UART5->DR = 'a'; 
         int n;
         for (n = 0; n < 8000000; n++) {
         }
-//        GPIOG->ODR ^= (1 << 13);
+        GPIOG->ODR ^= (1 << 13);
     }
-    while (1);
 }
