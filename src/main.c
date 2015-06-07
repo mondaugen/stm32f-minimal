@@ -1,6 +1,20 @@
 /* Minimal program */
 #include "stm32f4xx.h" 
 #include <stdint.h> 
+#include <stdio.h> 
+#include <math.h> 
+
+#define BAUD_RATE 9600UL 
+int puts(const char *str)
+{
+    while (*str != '\0') {
+        /* Wait for previous transfer to complete */
+        while (!(UART5->SR & USART_SR_TXE));
+        /* Transmit something */
+        UART5->DR = *str; 
+        str++;
+    }
+}
 
 int main (void)
 {
@@ -12,12 +26,7 @@ int main (void)
     /* Set mode to output */
     GPIOG->MODER |= (1 << (13*2));
     /* Set pin high if SystemCoreClock is what we think it is */
-    if ((SystemCoreClock == 180000000) && ((RCC->CFGR & RCC_CFGR_PPRE1) == RCC_CFGR_PPRE1_DIV4)) {
-        GPIOG->ODR |= (1 << 13);
-    }
-    /* To setup UART with baudrate of 115200 we do the following calculation
-     * DIV = (CPU_FREQ / APBx_PRESCALAR)/(16*115200)
-     * (in this case 0x187 is a good div value */
+    GPIOG->ODR |= (1 << 13);
     /* Enable PORT C clock */
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;
     /* Enable UART5 clock */
@@ -27,24 +36,25 @@ int main (void)
     GPIOC->MODER |= (1 << ((12*2)+1));
     GPIOC->AFR[1] &= ~(0xf << 16);
     GPIOC->AFR[1] |= (0x8 << 16);
-    /* Set speed fast */
-//    GPIOC->OSPEEDR |= (0x3 << (2*12));
-    /* Set open drain */
-//    GPIOC->OTYPER |= GPIO_OTYPER_ODR_12;
     /* Enable UART */
     UART5->CR1 |= USART_CR1_UE;
     UART5->CR1 &= ~USART_CR1_M;
     /* Set Baud Rate */
-    UART5->BRR = 0x124f;//0x187;
+    /* To setup UART with baudrate of 9600 we do the following calculation
+     * DIV = (CPU_FREQ / AHB_PRESCALAR / APBx_PRESCALAR)/(9600)
+     * as we don't use the 8x oversampling */
+    UART5->BRR = (SystemCoreClock
+                    / 1     /* AHB DIV is 1 */
+                    / 4)    /* APB1 DIV is 4 */
+                    / 9600UL;
     UART5->CR1 |= USART_CR1_TE;
     while (1) {
-        /* Wait for previous bytes to transmit */
-        while (!(UART5->SR & USART_SR_TXE));
-        /* Transmit something */
-        UART5->DR = 'a'; 
+        char buf[100];
+/*         snprintf(buf,100,"%d %d %f\n",100,123,1.2F); */
+        sprintf(buf,"%d %d %d\n",100,123,(int)(10000.0f*cosf(M_PI/4.)));
+        puts(buf);
         int n;
-        for (n = 0; n < 8000000; n++) {
-        }
+        for (n = 0; n < 8000000; n++);
         GPIOG->ODR ^= (1 << 13);
     }
 }
